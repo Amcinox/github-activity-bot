@@ -205,7 +205,7 @@ impl GitHubBot {
             // Refresh the file list
             result.clear();
             self.collect_files(Path::new(&self.config.repo_path), &mut result)?;
-// TODO: Update this line - bot modification 2025-04-10 07:23:25.517657 UTC
+        }
         
         Ok(result)
     }
@@ -238,22 +238,12 @@ impl GitHubBot {
         Ok(())
     }
 
-    fn modify_file(&self, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        let full_path = format!("{}/{}", self.config.repo_path, file_path);
-        
-        // Read file content
-        let content = fs::read_to_string(&full_path)?;
-        let lines: Vec<&str> = content.lines().collect();
-        
-        if lines.is_empty() {
-            return Ok(());
-        }
-        
+    fn create_or_modify_file(&self, file_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
         let mut rng = rand::thread_rng();
         let num_lines = rng.gen_range(self.config.min_lines..=self.config.max_lines);
         
         if self.config.debug {
-            println!("Modifying {} lines in file {}", num_lines_to_change, file_path); // Bot update: 2025-04-10 07:23:25.517666 UTC
+            println!("Modifying {} lines in file {}", num_lines, file_path.display());
         }
         
         let mut content = String::new();
@@ -265,6 +255,11 @@ impl GitHubBot {
         
         fs::write(file_path, content)?;
         Ok(())
+    }
+
+    fn modify_file(&self, file_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let full_path = Path::new(&self.config.repo_path).join(file_path);
+        self.create_or_modify_file(&full_path)
     }
 
     async fn create_pull_request(&self, branch_name: &str) -> Result<PullRequest, Box<dyn std::error::Error>> {
