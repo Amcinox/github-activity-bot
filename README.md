@@ -23,7 +23,7 @@ A Rust-based bot that automatically creates GitHub activity by making changes to
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/your-username/github-activity-bot.git
+git clone https://github.com/amcinox/github-activity-bot.git
 cd github-activity-bot
 ```
 
