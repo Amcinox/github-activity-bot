@@ -1,0 +1,27 @@
+# GitHub Activity Bot Configuration
+
+# GitHub credentials
+username = "amcinox"
+# Token should be set via GITHUB_TOKEN environment variable
+# token = "your_token_here"
+
+# Repository details (format: owner/repo)
+repo = "amcinox/github-activity-bot"
+
+# Local path to the repository
+repo_path = "."
+
+# Cron schedule (every 8 hours)
+# Format: "sec min hour day_of_month month day_of_week"
+cron_schedule = "0 0 */8 * * *"
+
+# Number of files to change
+min_files = 1
+max_files = 3
+
+# Number of lines to change per file
+min_lines = 1
+max_lines = 5
+
+# Debug mode
+debug = true

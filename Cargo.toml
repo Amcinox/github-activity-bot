@@ -1,0 +1,16 @@
+[package]
+name = "github-activity-bot"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+octocrab = "0.32"
+git2 = "0.15"
+chrono = "0.4"
+rand = "0.8"
+clap = { version = "3.2", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.5"
+tokio-cron-scheduler = "0.9"
+dotenv = "0.15"
