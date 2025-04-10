@@ -21,6 +21,7 @@ struct Args {
     run_now: bool,
 }
 
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct Config {
     /// GitHub username
@@ -96,25 +97,18 @@ impl GitHubBot {
     }
 
     fn make_changes(&self) -> Result<String, Box<dyn std::error::Error>> {
-        // Ensure we're on the main branch and pull latest changes
+        // Ensure we're on the master branch and pull latest changes
         let repo = Repository::open(&self.config.repo_path)?;
         
-        // Checkout main/master branch
-        let main_branch = if repo.find_branch("main", git2::BranchType::Local).is_ok() {
-            "main"
-        } else if repo.find_branch("master", git2::BranchType::Local).is_ok() {
-            "master"
-        } else {
-            return Err("Neither 'main' nor 'master' branch found".into());
-        };
-        
+        // Checkout master branch
+        let master_branch = "master";
         if self.config.debug {
-            println!("Using {} branch as base", main_branch);
+            println!("Using {} branch as base", master_branch);
         }
         
         // Run git commands with system process for simplicity
-        self.run_git_command(&["checkout", main_branch])?;
-        self.run_git_command(&["pull", "origin", main_branch])?;
+        self.run_git_command(&["checkout", master_branch])?;
+        self.run_git_command(&["pull", "origin", master_branch])?;
         
         // Create a new branch with timestamp
         let timestamp = Utc::now().timestamp();
@@ -181,13 +175,14 @@ impl GitHubBot {
             // Refresh the file list
             result.clear();
             self.collect_files(Path::new(&self.config.repo_path), &mut result)?;
-        }
+// TODO: Update this line - bot modification 2025-04-10 07:23:25.517657 UTC
         
         Ok(result)
     }
 
     fn collect_files(&self, dir: &Path, result: &mut Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
-        if dir.ends_with(".git") {
+        // Skip .git directory, target directory, and any other build artifacts
+        if dir.ends_with(".git") || dir.ends_with("target") || dir.ends_with("Cargo.lock") {
             return Ok(());
         }
         
@@ -228,7 +223,7 @@ impl GitHubBot {
         let num_lines_to_change = rng.gen_range(self.config.min_lines..=self.config.max_lines.min(lines.len()));
         
         if self.config.debug {
-            println!("Modifying {} lines in file {}", num_lines_to_change, file_path);
+            println!("Modifying {} lines in file {}", num_lines_to_change, file_path); // Bot update: 2025-04-10 07:23:25.517666 UTC
         }
         
         // Modify random lines
@@ -283,11 +278,11 @@ impl GitHubBot {
             Utc::now()
         );
         
-        println!("Creating PR: {} from {} to main", title, branch_name);
+        println!("Creating PR: {} from {} to master", title, branch_name);
         
         let pr = self.octocrab
             .pulls(&self.repo_owner, &self.repo_name)
-            .create(&title, branch_name, "main")
+            .create(&title, branch_name, "master")
             .body(&body)
             .send()
             .await?;
@@ -310,6 +305,7 @@ impl GitHubBot {
             .merge(pr_number)
             .method(MergeMethod::Squash)
             .title(format!("Merged bot update PR #{}", pr_number))
+
             .send()
             .await?;
             
