@@ -92,6 +92,17 @@ impl GitHubBot {
         // Step 4: Approve and merge the PR
         self.approve_and_merge_pr(pr.number).await?;
         
+        // Step 5: Clean up - delete the branch and return to main/master
+        let main_branch = if self.run_git_command(&["checkout", "main"]).is_ok() {
+            "main"
+        } else {
+            "master"
+        };
+        
+        self.run_git_command(&["checkout", main_branch])?;
+        self.run_git_command(&["branch", "-d", &branch_name])?;
+        self.run_git_command(&["push", "origin", "--delete", &branch_name])?;
+        
         println!("Bot run completed successfully at {}", Utc::now());
         Ok(())
     }
@@ -115,28 +126,47 @@ impl GitHubBot {
         let branch_name = format!("bot-update-{}", timestamp);
         self.run_git_command(&["checkout", "-b", &branch_name])?;
         
-        // Get all files in the repository (excluding .git directory)
-        let files = self.get_repository_files()?;
-        if self.config.debug {
-            println!("Found {} files in repository", files.len());
-        }
+        // Ensure changes directory exists
+        let changes_dir = Path::new(&self.config.repo_path).join("changes");
+        fs::create_dir_all(&changes_dir)?;
         
-        // Choose random files to modify
+        // Create or modify files in changes directory
         let mut rng = rand::thread_rng();
         let num_files_to_change = rng.gen_range(self.config.min_files..=self.config.max_files);
-        let files_to_change = files.choose_multiple(&mut rng, num_files_to_change).collect::<Vec<_>>();
         
         if self.config.debug {
-            println!("Will modify {} files", files_to_change.len());
+            println!("Will modify/create {} files in changes directory", num_files_to_change);
         }
         
-        // Modify each selected file
-        for file_path in files_to_change {
-            self.modify_file(file_path)?;
+        // Get existing files in changes directory
+        let existing_files: Vec<String> = fs::read_dir(&changes_dir)?
+            .filter_map(|entry| {
+                let entry = entry.ok()?;
+                let path = entry.path();
+                if path.is_file() {
+                    path.file_name()?.to_str().map(String::from)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        
+        // Create or modify files
+        for i in 0..num_files_to_change {
+            let file_name = if i < existing_files.len() {
+                // Modify existing file
+                existing_files[i].clone()
+            } else {
+                // Create new file
+                format!("change_{}.txt", i + 1)
+            };
+            
+            let file_path = changes_dir.join(&file_name);
+            self.create_or_modify_file(&file_path)?;
         }
         
         // Commit changes
-        let commit_message = format!("Update files {}", Utc::now().format("%Y-%m-%d %H:%M:%S"));
+        let commit_message = format!("Update {} files in changes directory", num_files_to_change);
         self.run_git_command(&["add", "."])?;
         self.run_git_command(&["commit", "-m", &commit_message])?;
         
@@ -220,54 +250,20 @@ impl GitHubBot {
         }
         
         let mut rng = rand::thread_rng();
-        let num_lines_to_change = rng.gen_range(self.config.min_lines..=self.config.max_lines.min(lines.len()));
+        let num_lines = rng.gen_range(self.config.min_lines..=self.config.max_lines);
         
         if self.config.debug {
             println!("Modifying {} lines in file {}", num_lines_to_change, file_path); // Bot update: 2025-04-10 07:23:25.517666 UTC
         }
         
-        // Modify random lines
-        let mut modified_lines = lines.iter().map(|&s| s.to_string()).collect::<Vec<_>>();
-        for _ in 0..num_lines_to_change {
-            let line_idx = rng.gen_range(0..lines.len());
-            let line = &modified_lines[line_idx];
-            
-            // Different modification strategies
-            let strategy = rng.gen_range(0..4);
-            match strategy {
-                0 => {
-                    // Add a comment
-                    if line.trim().is_empty() {
-                        modified_lines[line_idx] = format!("// Bot update: {}", Utc::now());
-                    } else if !line.trim_start().starts_with("//") {
-                        modified_lines[line_idx] = format!("{} // Bot update: {}", line, Utc::now());
-                    }
-                }
-                1 => {
-                    // Add an empty line after this line
-                    if line_idx < modified_lines.len() - 1 {
-                        modified_lines.insert(line_idx + 1, String::new());
-                    }
-                }
-                2 => {
-                    // Modify whitespace
-                    if !line.trim().is_empty() {
-                        let trimmed = line.trim();
-                        let indent = " ".repeat(rng.gen_range(0..4) * 4);
-                        modified_lines[line_idx] = format!("{}{}", indent, trimmed);
-                    }
-                }
-                _ => {
-                    // Add or replace a TODO comment
-                    modified_lines[line_idx] = format!("// TODO: Update this line - bot modification {}", Utc::now());
-                }
-            }
+        let mut content = String::new();
+        for i in 0..num_lines {
+            content.push_str(&format!("Line {}: Bot update at {}\n", 
+                i + 1, 
+                Utc::now().format("%Y-%m-%d %H:%M:%S")));
         }
         
-        // Write back the modified content
-        let new_content = modified_lines.join("\n");
-        fs::write(full_path, new_content)?;
-        
+        fs::write(file_path, content)?;
         Ok(())
     }
 
