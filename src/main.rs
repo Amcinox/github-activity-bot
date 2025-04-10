@@ -92,14 +92,8 @@ impl GitHubBot {
         // Step 4: Approve and merge the PR
         self.approve_and_merge_pr(pr.number).await?;
         
-        // Step 5: Clean up - delete the branch and return to main/master
-        let main_branch = if self.run_git_command(&["checkout", "main"]).is_ok() {
-            "main"
-        } else {
-            "master"
-        };
-        
-        self.run_git_command(&["checkout", main_branch])?;
+        // Step 5: Clean up - delete the branch and return to master
+        self.run_git_command(&["checkout", "master"])?;
         self.run_git_command(&["branch", "-d", &branch_name])?;
         self.run_git_command(&["push", "origin", "--delete", &branch_name])?;
         
@@ -176,6 +170,25 @@ impl GitHubBot {
         Ok(branch_name)
     }
 
+    fn create_or_modify_file(&self, file_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+        let mut rng = rand::thread_rng();
+        let num_lines = rng.gen_range(self.config.min_lines..=self.config.max_lines);
+        
+        if self.config.debug {
+            println!("Creating/modifying file: {:?} with {} lines", file_path, num_lines);
+        }
+        
+        let mut content = String::new();
+        for i in 0..num_lines {
+            content.push_str(&format!("Line {}: Bot update at {}\n", 
+                i + 1, 
+                Utc::now().format("%Y-%m-%d %H:%M:%S")));
+        }
+        
+        fs::write(file_path, content)?;
+        Ok(())
+    }
+
     fn get_repository_files(&self) -> Result<Vec<String>, Box<dyn std::error::Error>> {
         let mut result = Vec::new();
         self.collect_files(Path::new(&self.config.repo_path), &mut result)?;
@@ -205,7 +218,7 @@ impl GitHubBot {
             // Refresh the file list
             result.clear();
             self.collect_files(Path::new(&self.config.repo_path), &mut result)?;
-// TODO: Update this line - bot modification 2025-04-10 07:23:25.517657 UTC
+        }
         
         Ok(result)
     }
@@ -253,7 +266,7 @@ impl GitHubBot {
         let num_lines = rng.gen_range(self.config.min_lines..=self.config.max_lines);
         
         if self.config.debug {
-            println!("Modifying {} lines in file {}", num_lines_to_change, file_path); // Bot update: 2025-04-10 07:23:25.517666 UTC
+            println!("Modifying {} lines in file {}", num_lines, file_path);
         }
         
         let mut content = String::new();
