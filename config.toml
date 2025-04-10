@@ -16,12 +16,12 @@ repo_path = "."
 cron_schedule = "0 0 */8 * * *"
 
 # Number of files to change
-min_files = 1
-max_files = 3
+min_files = 10
+max_files = 20
 
 # Number of lines to change per file
-min_lines = 1
-max_lines = 5
+min_lines = 100
+max_lines = 500
 
 # Debug mode
 debug = true
